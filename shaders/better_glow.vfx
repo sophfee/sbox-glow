@@ -118,7 +118,7 @@ GS
 				// Todo: I will make this use a stencil mask instead of
 				// positioning it backwards when moving glow logic to C# - Sam
 				
-				v[i].vPositionPs.z += 0.1f;
+				v[i].vPositionPs.z += 0.5f;
 
 
 			}
