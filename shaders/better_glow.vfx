@@ -5,7 +5,7 @@ HEADER
 {
 	CompileTargets = ( IS_SM_50 && ( PC || VULKAN ) );
 	Description = "(Made by Nick from Landis Games) A better glow effect!";
-	DevShader = true;
+	DevShader = false;
 }
 
 //=========================================================================================================================
@@ -34,6 +34,8 @@ COMMON
 	#define STENCIL_ALREADY_SET
 	#define DEPTH_STATE_ALREADY_SET
 	#include "common/shared.hlsl"
+
+	DynamicCombo(GLOW_OUTLINE, 1..100, 1);
 }
 
 //=========================================================================================================================
@@ -72,6 +74,11 @@ VS
 GS
 {
 	#include "common/vertex.hlsl"
+	#include "postprocess/common.hlsl"
+
+    RenderState( DepthWriteEnable, false );
+    RenderState( DepthEnable, false );
+	RenderState( StencilPassOp, ZERO );
 
 	void PositionOffset (inout PixelInput input, float2 vOffsetDir, float flOutlineSize)
 	{
@@ -93,7 +100,7 @@ GS
     [maxvertexcount(3*10)]
     void MainGs(triangle in PixelInput vertices[3], inout TriangleStream<PixelInput> triStream)
     {
-		const float flOutlineSize = 0.0025f;
+		const float flOutlineSize = 0.1045f;
         const float fTwoPi = 6.28318f;
 		const uint nNumIterations = 6; 
 
@@ -139,6 +146,23 @@ GS
 PS
 {
     #include "common/pixel.hlsl"
+	#include "postprocess/common.hlsl"
+
+    RenderState( DepthWriteEnable, false );
+    RenderState( DepthEnable, false );
+
+	CreateTexture2D( g_tDepthBuffer ) < Attribute( "DepthBuffer" ); 	SrgbRead( false ); Filter( MIN_MAG_MIP_POINT ); AddressU( CLAMP ); AddressV( CLAMP ); >;
+
+    DynamicCombo( D_ENABLED, 0..1, .1 );
+
+	struct VertexInput
+	{
+		float3 vPositionOs : POSITION < Semantic( PosXyz ); >;
+		float4 vNormalOs : NORMAL < Semantic( OptionallyCompressedTangentFrame ); >;
+		float2 vTexCoord : TEXCOORD0 < Semantic( LowPrecisionUv ); >;
+		float4 vColor : COLOR;
+	}
+
 	//
 	// Main
 	//
@@ -146,9 +170,13 @@ PS
 	{
 		
 		PixelOutput o;
+
+		float2 vScreenUv = i.vTexCoord.xy - g_vViewportOffset.xy / g_vRenderTargetSize;
+
 		
-		o.vColor = float4(i.vVertexColor.rgb * 1.0f,1);
-		
+		float depth = Tex2D( g_tDepthBuffer, vScreenUv.xy );
+		float diff =  1f - depth.a;
+		o.vColor.rgb = 1- depth;
 
 		return o;
 	}
