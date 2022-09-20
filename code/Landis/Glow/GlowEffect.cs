@@ -4,7 +4,6 @@ namespace Landis
 {
 	/// <summary>
 	/// A new and a bit better glow effect.
-	/// Create after setting model on a ModelEntity.
 	/// </summary>
 	public partial class GlowEffect : EntityComponent<ModelEntity>
 	{
@@ -18,13 +17,12 @@ namespace Landis
 					GlowModel = new ModelEntity();
 					GlowModel.CopyFrom( Entity );
 					GlowModel.Parent = Entity;
-
+                    GlowModel.EnableDrawing = false;
 					GlowModel.LocalPosition = Vector3.Zero;
 					GlowModel.LocalRotation = Rotation.FromPitch( 0.0f );
+                    GlowModel.SetMaterialOverride( "materials/glow.vmat" );
 				}
 			}
-
-			GlowModel.SetMaterialOverride( "materials/glow.vmat" );
 		}
 
 		/// <summary>
@@ -56,6 +54,9 @@ namespace Landis
 			}
 		}
 
+        /// <summary>
+        /// The color of the glow.
+        /// </summary>
 		public Color Color
 		{
 			get
@@ -76,5 +77,31 @@ namespace Landis
 				}
 			}
 		}
+
+		/// <summary>
+		/// This doesn't seem to work, let me know if it does or doesn't.
+		/// </summary>
+		public float Opacity
+		{
+			get => Color.a;
+			set => Color = Color.WithAlpha( value );
+		}
+
+        private Material _glowMaterial = Material.Load("materials/glow.vmat");
+
+        /// <summary>
+        /// Changes the material that is used to draw the glow, don't recommend changing this.
+        /// </summary>
+        public Material MaterialOverride {
+            get
+            {
+                return _glowMaterial;
+            }
+            set
+            {
+                _glowMaterial = value;
+                GlowModel.SetMaterialOverride( _glowMaterial );
+            }
+        }
 	}
 }
