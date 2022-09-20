@@ -35,3 +35,9 @@ namespace Example
 	}
 }
 ```
+
+# Credit
+I'd like to have a mention crediting me somewhere if you use this in your game, it doesn't have to be big text but somewhere have text that can be displayed (or a label in a mainmenu) containing something like this
+`Glow System created by Landis Games`
+
+You can tweak the wording if you want, as long as the message is conveyed.
