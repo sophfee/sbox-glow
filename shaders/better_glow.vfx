@@ -21,6 +21,7 @@ FEATURES
 //=========================================================================================================================
 MODES
 {
+	Default();
     VrForward();													// Indicates this shader will be used for main rendering
     ToolsVis( S_MODE_TOOLS_VIS ); 									// Ability to see in the editor
     ToolsWireframe( "vr_tools_wireframe.vfx" ); 					// Allows for mat_wireframe to work
@@ -34,8 +35,7 @@ COMMON
 	#define STENCIL_ALREADY_SET
 	#define DEPTH_STATE_ALREADY_SET
 	#include "common/shared.hlsl"
-
-	DynamicCombo(GLOW_OUTLINE, 1..100, 1);
+	#include "postprocess/shared.hlsl"
 }
 
 //=========================================================================================================================
@@ -50,7 +50,7 @@ struct VertexInput
 
 struct PixelInput
 {
-	#include "common/pixelinput.hlsl"
+    #include "common/pixelinput.hlsl"
 };
 
 //=========================================================================================================================
@@ -58,7 +58,7 @@ struct PixelInput
 VS
 {
 	#include "common/vertex.hlsl"
-	//
+
 	// Main
 	//
 	PixelInput MainVs( INSTANCED_SHADER_PARAMS( VS_INPUT i ) )
@@ -74,11 +74,6 @@ VS
 GS
 {
 	#include "common/vertex.hlsl"
-	#include "postprocess/common.hlsl"
-
-    RenderState( DepthWriteEnable, false );
-    RenderState( DepthEnable, false );
-	RenderState( StencilPassOp, ZERO );
 
 	void PositionOffset (inout PixelInput input, float2 vOffsetDir, float flOutlineSize)
 	{
@@ -100,7 +95,7 @@ GS
     [maxvertexcount(3*10)]
     void MainGs(triangle in PixelInput vertices[3], inout TriangleStream<PixelInput> triStream)
     {
-		const float flOutlineSize = 0.1045f;
+		const float flOutlineSize = 0.0045f;
         const float fTwoPi = 6.28318f;
 		const uint nNumIterations = 6; 
 
@@ -145,24 +140,22 @@ GS
 
 PS
 {
-    #include "common/pixel.hlsl"
-	#include "postprocess/common.hlsl"
 
-    RenderState( DepthWriteEnable, false );
-    RenderState( DepthEnable, false );
+	
+	#define MSAA_NO_SAMPLER
+	#include "postprocess/common.hlsl"
+	#include "common/msaa.hlsl"
+    #include "common/pixel.hlsl"
+	
+	#include "common/proceedural.hlsl"
+
+    RenderState( DepthWriteEnable, true );
+    RenderState( DepthEnable, true );
+	RenderState( DepthFunc, LESS_EQUAL );
 
 	CreateTexture2D( g_tDepthBuffer ) < Attribute( "DepthBuffer" ); 	SrgbRead( false ); Filter( MIN_MAG_MIP_POINT ); AddressU( CLAMP ); AddressV( CLAMP ); >;
-
-    DynamicCombo( D_ENABLED, 0..1, .1 );
-
-	struct VertexInput
-	{
-		float3 vPositionOs : POSITION < Semantic( PosXyz ); >;
-		float4 vNormalOs : NORMAL < Semantic( OptionallyCompressedTangentFrame ); >;
-		float2 vTexCoord : TEXCOORD0 < Semantic( LowPrecisionUv ); >;
-		float4 vColor : COLOR;
-	}
-
+	float flScale< Attribute("ResolutionScale"); Default(1.0f); >;
+	
 	//
 	// Main
 	//
@@ -171,12 +164,13 @@ PS
 		
 		PixelOutput o;
 
-		float2 vScreenUv = i.vTexCoord.xy - g_vViewportOffset.xy / g_vRenderTargetSize;
+		// Get the current screen texture coordinates
+        	float2 vScreenUv = CalculateViewportUvFromInvSize( i.vPositionSs.xy, -1.0f / g_vRenderTargetSize );
+		vScreenUv *= flScale;
+		// Depth Sample
 
-		
-		float depth = Tex2D( g_tDepthBuffer, vScreenUv.xy );
-		float diff =  1f - depth.a;
-		o.vColor.rgb = 1- depth;
+		o.vColor = float4(i.vVertexColor.rgb, 1.0f);
+
 
 		return o;
 	}
